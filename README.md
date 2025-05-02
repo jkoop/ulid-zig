@@ -12,7 +12,7 @@ const Ulid = @import("ulid").Ulid;
 // generate a new ulid // we default to non-monotonic mode
 var ulid = Ulid.generate(.{}) catch unreachable;
 
-// for monotonic mode, guaranteeing ulids to "higher" than all previous
+// for monotonic mode, guaranteeing ulid to be "higher" than all previous. See api doc
 var ulid = try Ulid.generate(.{ .monotonic_mode = true });
 
 // parse a ulid from a string

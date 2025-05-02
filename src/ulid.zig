@@ -6,6 +6,9 @@ pub const UlidOptions = struct {
     /// ulid will have a random part of one more than the previous ulid (as if
     /// it's a huge incrementing number).
     /// https://github.com/ulid/spec?tab=readme-ov-file#monotonicity
+    ///
+    /// if false, the mutex is not consulted, which may cause races with other
+    /// threads using monotonic_mode.
     monotonic_mode: bool = false,
 };
 
@@ -18,6 +21,7 @@ pub const Ulid = enum(u128) {
     unassigned = 0,
     _,
 
+    /// will never return an error if options.monotonic_mode is false
     pub fn generate(options: UlidOptions) error{Overflow}!@This() {
         if (options.monotonic_mode) {
             last_gen_millisecond = @intCast(std.time.milliTimestamp());
