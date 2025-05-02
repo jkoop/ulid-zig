@@ -1,14 +1,43 @@
 const std = @import("std");
 
+pub const UlidOptions = struct {
+    /// if true, a mutex is consulted during generation, and if this call for
+    /// generation occurs during the same millisecond as another, the returned
+    /// ulid will have a random part of one more than the previous ulid (as if
+    /// it's a huge incrementing number).
+    /// https://github.com/ulid/spec?tab=readme-ov-file#monotonicity
+    monotonic_mode: bool = false,
+};
+
+// @todo confirm that these cariable are shared across all `@import`s of this lib.
+var mutex: std.Thread.Mutex = .{};
+var last_gen_millisecond: u48 = 0;
+var last_gen_random: u80 = 0;
+
 pub const Ulid = enum(u128) {
     unassigned = 0,
     _,
 
-    pub fn generate() @This() {
-        const time_part: u48 = @intCast(std.time.milliTimestamp());
-        const rand_part = std.crypto.random.int(u80);
+    pub fn generate(options: UlidOptions) error{Overflow}!@This() {
+        if (options.monotonic_mode) {
+            last_gen_millisecond = @intCast(std.time.milliTimestamp());
+            last_gen_random = std.crypto.random.int(u80);
+        } else {
+            const time_part: u48 = @intCast(std.time.milliTimestamp());
 
-        return @enumFromInt((@as(u128, @intCast(time_part)) << 80) | rand_part);
+            if (time_part == last_gen_millisecond) {
+                if (last_gen_random == 0xFFFFFFFFFFFFFFFFFFFF) {
+                    return error.Overflow;
+                }
+
+                last_gen_random += 1;
+            } else {
+                last_gen_millisecond = time_part;
+                last_gen_random = std.crypto.random.int(u80);
+            }
+        }
+
+        return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
     }
 
     pub fn to_string(self: @This(), buffer: *[26]u8) *[26]u8 {
@@ -64,6 +93,12 @@ pub const Ulid = enum(u128) {
                 'Z', 'z' => 31,
                 else => return error.InvalidChar,
             };
+
+            // https://github.com/ulid/spec?tab=readme-ov-file#overflow-errors-when-parsing-base32-strings
+            if (index == 0 and (codel & 0b11000) > 0) {
+                return error.InvalidChar;
+            }
+
             as_int |= @as(u128, @intCast(codel)) << @intCast((25 - index) * 5);
         }
 
@@ -72,7 +107,7 @@ pub const Ulid = enum(u128) {
 };
 
 test "generate" {
-    try std.testing.expect(Ulid.generate() != .unassigned);
+    try std.testing.expect(try Ulid.generate(.{}) != .unassigned);
 }
 
 test "re-encode" {

@@ -9,8 +9,11 @@ This is a simple package for Zig projects that implements [ULID][ulid-spec] as a
 ```zig
 const Ulid = @import("ulid").Ulid;
 
-// generate a new ulid
-var ulid = Ulid.generate();
+// generate a new ulid // we default to non-monotonic mode
+var ulid = Ulid.generate(.{}) catch unreachable;
+
+// for monotonic mode, guaranteeing ulids to "higher" than all previous
+var ulid = try Ulid.generate(.{ .monotonic_mode = true });
 
 // parse a ulid from a string
 var ulid = try Ulid.from_string("01JT9B27HTN19SEWVMWXRDRVC4");
