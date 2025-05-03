@@ -56,8 +56,8 @@ pub const Ulid = enum(u128) {
         return buffer;
     }
 
-    pub fn from_string(string: []const u8) error{ InvalidChar, InvalidLength }!@This() {
-        if (string.len != 26) return error.InvalidLength;
+    pub fn from_string(string: []const u8) error{ InvalidCharacter, LengthMismatch }!@This() {
+        if (string.len != 26) return error.LengthMismatch;
         var as_int: u128 = 0;
 
         for (0..26) |index| {
@@ -95,18 +95,31 @@ pub const Ulid = enum(u128) {
                 'X', 'x' => 29,
                 'Y', 'y' => 30,
                 'Z', 'z' => 31,
-                else => return error.InvalidChar,
+                else => return error.InvalidCharacter,
             };
 
             // https://github.com/ulid/spec?tab=readme-ov-file#overflow-errors-when-parsing-base32-strings
             if (index == 0 and (codel & 0b11000) > 0) {
-                return error.InvalidChar;
+                return error.InvalidCharacter;
             }
 
             as_int |= @as(u128, @intCast(codel)) << @intCast((25 - index) * 5);
         }
 
         return @enumFromInt(as_int);
+    }
+
+    /// Used by `std.json`; parses from a string like `from_string()`
+    pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) std.json.ParseError(@TypeOf(source.*))!@This() {
+        const json_parse = try std.json.parseFromTokenSource([]u8, allocator, source, options);
+        return from_string(json_parse.value);
+    }
+
+    /// Used by `std.json`; encodes to a string like `to_string()`
+    pub fn jsonStringify(self: @This(), stream: anytype) !void {
+        var buffer: [26]u8 = @splat(0);
+        _ = self.to_string(&buffer);
+        try stream.write(buffer);
     }
 };
 
@@ -125,6 +138,19 @@ test "re-encode" {
 }
 
 test "try decode bad" {
-    try std.testing.expect(Ulid.from_string("123") == error.InvalidLength);
-    try std.testing.expect(Ulid.from_string("##########################") == error.InvalidChar);
+    try std.testing.expect(Ulid.from_string("123") == error.LengthMismatch);
+    try std.testing.expect(Ulid.from_string("##########################") == error.InvalidCharacter);
+}
+
+test "json" {
+    var arena = std.heap.ArenaAllocator.init(std.testing.allocator);
+    defer arena.deinit();
+    const allocator = arena.allocator();
+
+    const ulid: Ulid = @enumFromInt(2111036925982184970599634536618735056);
+    const json = try std.json.stringifyAlloc(allocator, ulid, .{});
+    try std.testing.expect(std.mem.eql(u8, json, "\"01JT92G0CM04D52G0ZC101YDEG\""));
+
+    const ulid2 = try std.json.parseFromSliceLeaky(Ulid, allocator, json, .{});
+    try std.testing.expect(ulid == ulid2);
 }

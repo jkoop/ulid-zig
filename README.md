@@ -1,6 +1,6 @@
 # Ulid package for Zig
 
-This is a simple package for Zig projects that implements [ULID][ulid-spec] as an enum with methods/functions.
+This is a simple package for Zig projects that implements [ULID][ulid-spec] as an enum with convenience methods. Includes methods for `std.json` to en-/decode as a string, e.g. `"01JT9B27HTN19SEWVMWXRDRVC4"`.
 
 - [API docs][api-docs]
 
