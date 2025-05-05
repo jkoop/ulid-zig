@@ -16,11 +16,11 @@ var ulid = Ulid.generate(.{}) catch unreachable;
 var ulid = try Ulid.generate(.{ .monotonic_mode = true });
 
 // parse a ulid from a string
-var ulid = try Ulid.from_string("01JT9B27HTN19SEWVMWXRDRVC4");
+var ulid = try Ulid.fromString("01JT9B27HTN19SEWVMWXRDRVC4");
 
 // encode a ulid to a string
 var buffer: [26]u8 = @splat(0);
-ulid.to_string(&buffer); // overwrites the bytes of the buffer with the string and returns the string
+ulid.toString(&buffer); // overwrites the bytes of the buffer with the string and returns the string
 
 // compare two ulids
 if (ulid1 == ulid2) {
