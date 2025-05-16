@@ -44,7 +44,7 @@ pub const Ulid = enum(u128) {
         return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
     }
 
-    pub fn to_string(self: @This(), buffer: *[26]u8) *[26]u8 {
+    pub fn toString(self: @This(), buffer: *[26]u8) *[26]u8 {
         const as_int = @intFromEnum(self);
 
         for (0..26) |index| {
@@ -56,7 +56,7 @@ pub const Ulid = enum(u128) {
         return buffer;
     }
 
-    pub fn from_string(string: []const u8) error{ InvalidCharacter, LengthMismatch }!@This() {
+    pub fn fromString(string: []const u8) error{ InvalidCharacter, LengthMismatch }!@This() {
         if (string.len != 26) return error.LengthMismatch;
         var as_int: u128 = 0;
 
@@ -113,14 +113,14 @@ pub const Ulid = enum(u128) {
     pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) std.json.ParseError(@TypeOf(source.*))!@This() {
         const string: []u8 = try std.json.innerParse([]u8, allocator, source, options);
         defer allocator.free(string);
-        const ulid: @This() = try from_string(string);
+        const ulid: @This() = try fromString(string);
         return ulid;
     }
 
     /// Used by `std.json`; encodes to a string like `to_string()`
     pub fn jsonStringify(self: @This(), stream: anytype) !void {
         var buffer: [26]u8 = @splat(0);
-        _ = self.to_string(&buffer);
+        _ = self.toString(&buffer);
         try stream.write(buffer);
     }
 };
@@ -133,15 +133,15 @@ test "re-encode" {
     const messy_ulid = "o1jt92gocm04D52GOzCl0IYdEG";
     const nice_ulid = "01JT92G0CM04D52G0ZC101YDEG";
 
-    const ulid = try Ulid.from_string(messy_ulid);
+    const ulid = try Ulid.fromString(messy_ulid);
     var buffer: [26]u8 = @splat(0);
-    try std.testing.expect(std.mem.eql(u8, nice_ulid, ulid.to_string(&buffer)));
+    try std.testing.expect(std.mem.eql(u8, nice_ulid, ulid.toString(&buffer)));
     try std.testing.expect(std.mem.eql(u8, nice_ulid, &buffer));
 }
 
 test "try decode bad" {
-    try std.testing.expect(Ulid.from_string("123") == error.LengthMismatch);
-    try std.testing.expect(Ulid.from_string("##########################") == error.InvalidCharacter);
+    try std.testing.expect(Ulid.fromString("123") == error.LengthMismatch);
+    try std.testing.expect(Ulid.fromString("##########################") == error.InvalidCharacter);
 }
 
 test "json" {
