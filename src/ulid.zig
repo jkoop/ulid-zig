@@ -111,8 +111,10 @@ pub const Ulid = enum(u128) {
 
     /// Used by `std.json`; parses from a string like `from_string()`
     pub fn jsonParse(allocator: std.mem.Allocator, source: anytype, options: std.json.ParseOptions) std.json.ParseError(@TypeOf(source.*))!@This() {
-        const json_parse = try std.json.parseFromTokenSource([]u8, allocator, source, options);
-        return from_string(json_parse.value);
+        const string: []u8 = try std.json.innerParse([]u8, allocator, source, options);
+        defer allocator.free(string);
+        const ulid: @This() = try from_string(string);
+        return ulid;
     }
 
     /// Used by `std.json`; encodes to a string like `to_string()`
