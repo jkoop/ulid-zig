@@ -150,7 +150,7 @@ test "json" {
     const allocator = arena.allocator();
 
     const ulid: Ulid = @enumFromInt(2111036925982184970599634536618735056);
-    const json = try std.json.stringifyAlloc(allocator, ulid, .{});
+    const json = try std.json.Stringify.valueAlloc(allocator, ulid, .{});
     try std.testing.expect(std.mem.eql(u8, json, "\"01JT92G0CM04D52G0ZC101YDEG\""));
 
     const ulid2 = try std.json.parseFromSliceLeaky(Ulid, allocator, json, .{});

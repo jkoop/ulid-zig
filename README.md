@@ -37,14 +37,11 @@ zig fetch --save https://github.com/jkoop/ulid-zig/archive/COMMIT.zip
 ```
 
 ```zig
-// build.zig before b.installArtifact(exe);
-
-const ulid = b.dependency("ulid", .{
-    .target = target,
-    .optimize = optimize,
-}).module("ulid");
-
-exe.root_module.addImport("ulid", ulid);
+// add to your build.zig, in your Module's .imports
+.{
+    .name = "ulid",
+    .module = b.dependency("ulid", .{ .target = target }).module("ulid"),
+},
 ```
 
 [api-docs]: https://joekoop.com/ulid-zig
