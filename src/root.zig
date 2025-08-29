@@ -12,7 +12,7 @@ pub const UlidOptions = struct {
     monotonic_mode: bool = false,
 };
 
-// @todo confirm that these cariable are shared across all `@import`s of this lib.
+// @todo confirm that these variables are shared across all `@import`s of this lib.
 var mutex: std.Thread.Mutex = .{};
 var last_gen_millisecond: u48 = 0;
 var last_gen_random: u80 = 0;
@@ -21,26 +21,34 @@ pub const Ulid = enum(u128) {
     unassigned = 0,
     _,
 
-    /// will never return an error if options.monotonic_mode is false
     pub fn generate(options: UlidOptions) error{Overflow}!@This() {
         if (options.monotonic_mode) {
-            last_gen_millisecond = @intCast(std.time.milliTimestamp());
-            last_gen_random = std.crypto.random.int(u80);
-        } else {
-            const time_part: u48 = @intCast(std.time.milliTimestamp());
-
-            if (time_part == last_gen_millisecond) {
-                if (last_gen_random == 0xFFFFFFFFFFFFFFFFFFFF) {
-                    return error.Overflow;
-                }
-
-                last_gen_random += 1;
-            } else {
-                last_gen_millisecond = time_part;
-                last_gen_random = std.crypto.random.int(u80);
-            }
+            return generateMonotonic();
         }
 
+        return generateRandom();
+    }
+
+    pub fn generateMonotonic() error{Overflow}!@This() {
+        const time_part: u48 = @intCast(std.time.milliTimestamp());
+
+        if (time_part == last_gen_millisecond) {
+            if (last_gen_random == 0xFFFFFFFFFFFFFFFFFFFF) {
+                return error.Overflow;
+            }
+
+            last_gen_random += 1;
+        } else {
+            last_gen_millisecond = time_part;
+            last_gen_random = std.crypto.random.int(u80);
+        }
+
+        return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
+    }
+
+    pub fn generateRandom() @This() {
+        last_gen_millisecond = @intCast(std.time.milliTimestamp());
+        last_gen_random = std.crypto.random.int(u80);
         return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
     }
 
