@@ -1,17 +1,5 @@
 const std = @import("std");
 
-pub const UlidOptions = struct {
-    /// if true, a mutex is consulted during generation, and if this call for
-    /// generation occurs during the same millisecond as another, the returned
-    /// ulid will have a random part of one more than the previous ulid (as if
-    /// it's a huge incrementing number).
-    /// https://github.com/ulid/spec?tab=readme-ov-file#monotonicity
-    ///
-    /// if false, the mutex is not consulted, which may cause races with other
-    /// threads using monotonic_mode.
-    monotonic_mode: bool = false,
-};
-
 // @todo confirm that these variables are shared across all `@import`s of this lib.
 var mutex: std.Thread.Mutex = .{};
 var last_gen_millisecond: u48 = 0;
@@ -21,14 +9,11 @@ pub const Ulid = enum(u128) {
     unassigned = 0,
     _,
 
-    pub fn generate(options: UlidOptions) error{Overflow}!@This() {
-        if (options.monotonic_mode) {
-            return generateMonotonic();
-        }
-
-        return generateRandom();
-    }
-
+    /// A mutex is consulted during generation, and if this call for generation occurs
+    /// during the same millisecond as another, the returned ulid will have a random
+    /// part of one more than the previous ulid (as if the whole thing is one huge
+    /// incrementing number).
+    /// https://github.com/ulid/spec?tab=readme-ov-file#monotonicity
     pub fn generateMonotonic() error{Overflow}!@This() {
         const time_part: u48 = @intCast(std.time.milliTimestamp());
 
@@ -46,6 +31,8 @@ pub const Ulid = enum(u128) {
         return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
     }
 
+    /// The mutex is not consulted (which may cause races with other threads using
+    /// .generateMonotonic()). The random part is random.
     pub fn generateRandom() @This() {
         last_gen_millisecond = @intCast(std.time.milliTimestamp());
         last_gen_random = std.crypto.random.int(u80);
@@ -134,7 +121,8 @@ pub const Ulid = enum(u128) {
 };
 
 test "generate" {
-    try std.testing.expect(try Ulid.generate(.{}) != .unassigned);
+    try std.testing.expect(try Ulid.generateMonotonic() != .unassigned);
+    try std.testing.expect(Ulid.generateRandom() != .unassigned);
 }
 
 test "re-encode" {
