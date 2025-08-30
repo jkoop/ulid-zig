@@ -17,15 +17,20 @@ pub const Ulid = enum(u128) {
     pub fn generateMonotonic() error{Overflow}!@This() {
         const time_part: u48 = @intCast(std.time.milliTimestamp());
 
-        if (time_part == last_gen_millisecond) {
-            if (last_gen_random == 0xFFFFFFFFFFFFFFFFFFFF) {
-                return error.Overflow;
-            }
+        {
+            mutex.lock();
+            defer mutex.unlock();
 
-            last_gen_random += 1;
-        } else {
-            last_gen_millisecond = time_part;
-            last_gen_random = std.crypto.random.int(u80);
+            if (time_part == last_gen_millisecond) {
+                if (last_gen_random == 0xFFFFFFFFFFFFFFFFFFFF) {
+                    return error.Overflow;
+                }
+
+                last_gen_random += 1;
+            } else {
+                last_gen_millisecond = time_part;
+                last_gen_random = std.crypto.random.int(u80);
+            }
         }
 
         return @enumFromInt((@as(u128, @intCast(last_gen_millisecond)) << 80) | last_gen_random);
